@@ -30,16 +30,22 @@ class UsersController {
         const {id} = request.params;
 
         const database = await sqliteConnection();
-        const user = await database.get("SELECT * FROM users WHERE id = (?)", [id])
+        const user = await database.get('SELECT * FROM users WHERE id = (?)', [id])
         
         if(!user) {
             throw new AppError("Usuário não encontrado.");
         }
         
-        const userWithUpdatedEmail = await database.get("SELECT FROM users,WHERE email = (?)", [email]);
+        const userWithUpdatedEmail = await database.get("SELECT FROM users WHERE email = (?)", [email]);
         
-        user.name = name;
-        user.email = email;
+
+        if(userWithUpdatedEmail && userWithUpdatedEmail.id !== user.id){
+            throw new AppError("Este e-mail já está em uso.");
+
+        }
+
+        user.name = name ?? user.name;
+        user.email = email ?? user.email;
 
         if(password  && !old_password) {
             throw new AppError("Você precisa informar a senha antiga para definir a nova senha.")
@@ -49,7 +55,7 @@ class UsersController {
             const checkOldPassword = await compare(old_password, user.password);
 
             if(!checkOldPassword) {
-                throw new AppError("A senha antiga não confere.")
+                throw new AppError("A senha antiga não confere.");
             }
 
             user.password = await hash(password, 8)
@@ -60,14 +66,14 @@ class UsersController {
             name = ?,
             email = ?,
             password = ?,
-            updated_at = DATETIME('now'),
-            WHERE id = ?`
+            updated_at = DATETIME('now')
+            WHERE id = ?`,
             [user.name, user.email, user.password, id]
         );
 
-        return response.json();
+        return response.status(200).json();
     }
-        
+    
 }
 
-module.exports = UsersController
+module.exports = UsersController;
